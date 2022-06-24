@@ -70,7 +70,7 @@ services:
       org.label-schema.group: "monitoring"
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:7.5.5
     container_name: grafana
     ports:
       - 3000:3000
