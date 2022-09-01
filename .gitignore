@@ -11,12 +11,12 @@ output_videos/*
 .DS_Store
 
 # Agamotto
-agamotto/weights/crowdhuman_yolov5m.pt
-stream/input_videos
-agamotto/input_videos
-agamotto/output_videos
+*.pt
+*.mp4
 
-
+collect/agamotto/weights/
+optimize/agamotto.yaml
+optimize/bq_credentials.json
 
 
 # Distribution / packaging
