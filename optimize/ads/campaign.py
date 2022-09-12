@@ -19,6 +19,7 @@ To get campaigns, run get_campaigns.py.
 
 
 import argparse
+import resource
 import sys
 
 from google.ads.googleads.errors import GoogleAdsException
@@ -60,11 +61,11 @@ class Campaign:
                         # 120, 116 - 80, 116
                         if delta_sales < sales_down_threshold:
                             logger(self.__class__.__name__).info(f"Updating campaign for StoreId: {id}")
-                            self.update_campaign_status(customer_id,campaign_id, "enable")
+                            self.update_performance_max_campaign(customer_id,campaign_id)
                             # campaign.update_campaign_status(customer_id,campaign_id, "enable")
                         if delta_count < visits_down_threshold:
                             logger(self.__class__.__name__).info(f"Updating campaign for StoreId: {id}")
-                            self.update_campaign_status(customer_id,campaign_id, "enable")
+                            self.update_performance_max_campaign(customer_id,campaign_id)
                             # campaign.update_campaign_status(customer_id,campaign_id, "enable")
         except Exception as ex:
             raise ex
@@ -96,8 +97,19 @@ class Campaign:
             customer_id=customer_id, operations=[campaign_operation]
         )
         logger(self.__class__.__name__).info(f"Campaign updated for: {campaign_response.results[0].resource_name}")
-    
-    def create_campaign_budget_operation(client, customer_id):
+
+    def update_performance_max_campaign(self, customer_id, campaign_id):
+        googleads_service = self._googleads_client.get_service("GoogleAdsService")
+        campaign_budget_operation = self.update_campaign_budget_operation(self._googleads_client, customer_id, campaign_id)
+        logger(self.__class__.__name__).info(f"Campaign updated for: {campaign_budget_operation}")
+        #performance_max_campaign_operation = (self.create_performance_max_campaign_operation(self._googleads_client,customer_id, campaign_id))
+        #logger(self.__class__.__name__).info(f"Campaign updated for: {performance_max_campaign_operation}")
+        mutate_operations = [campaign_budget_operation]
+        response = googleads_service.mutate(customer_id=customer_id, mutate_operations=mutate_operations)
+        logger(self.__class__.__name__).info(f"Campaign updated for: {response}")
+
+
+    def update_campaign_budget_operation(self, client, customer_id, campaign_id):
         """Creates a MutateOperation that creates a new CampaignBudget.
         A temporary ID will be assigned to this campaign budget so that it can be
         referenced by other objects being created in the same Mutate request.
@@ -107,27 +119,47 @@ class Campaign:
         Returns:
             a MutateOperation that creates a CampaignBudget.
         """
-        mutate_operation = client.get_type("MutateOperation")
-        campaign_budget_operation = mutate_operation.campaign_budget_operation
-        campaign_budget = campaign_budget_operation.create
-        campaign_budget.name = f"Agamotto - Budget"
-        # The budget period already defaults to DAILY.
-        campaign_budget.amount_micros = 500000
-        campaign_budget.delivery_method = (
-            client.enums.BudgetDeliveryMethodEnum.STANDARD
-        )
-        # A Performance Max campaign cannot use a shared campaign budget.
-        campaign_budget.explicitly_shared = False
+        try:
 
-        # Set a temporary ID in the budget's resource name so it can be referenced
-        # by the campaign in later steps.
-        campaign_budget.resource_name = client.get_service(
-            "CampaignBudgetService"
-        ).campaign_budget_path(customer_id, _BUDGET_TEMPORARY_ID)
+            ga_service = client.get_service("GoogleAdsService")
 
-        return mutate_operation
+            query = f"""        
+            SELECT
+              campaign.id,
+              campaign.name,
+              campaign.campaign_budget
+            FROM campaign
+            where campaign.id = {campaign_id}
+            ORDER BY campaign.id  """
 
-    def create_performance_max_campaign_operation(client,customer_id):
+            stream = ga_service.search_stream(customer_id=customer_id, query=query)
+
+            for batch in stream:
+                for row in batch.results:
+                    logger(self.__class__.__name__).info(f"Campaign info {row}")
+                    resource_name = row.campaign.campaign_budget
+            
+            mutate_operation = client.get_type("MutateOperation")
+            campaign_budget_operation = mutate_operation.campaign_budget_operation
+            campaign_budget = campaign_budget_operation.update
+            campaign_budget.amount_micros = 100000
+            # The budget period already defaults to DAILY.
+            # A Performance Max campaign cannot use a shared campaign budget.
+            campaign_budget.explicitly_shared = False
+            # Set a temporary ID in the budget's resource name so it can be referenced
+            # by the campaign in later steps
+            
+            campaign_budget.resource_name = resource_name
+            self._googleads_client.copy_from(
+                mutate_operation.campaign_budget_operation.update_mask,
+                protobuf_helpers.field_mask(None, campaign_budget._pb),
+            )            
+    
+            return mutate_operation
+        except Exception as ex:
+            raise ex
+    
+    def create_performance_max_campaign_operation(self, client, customer_id, campaign_id):
         """Creates a MutateOperation that creates a new Performance Max campaign.
         A temporary ID will be assigned to this campaign so that it can
         be referenced by other objects being created in the same Mutate request.
@@ -137,62 +169,40 @@ class Campaign:
         Returns:
             a MutateOperation that creates a campaign.
         """
-        mutate_operation = client.get_type("MutateOperation")
-        campaign = mutate_operation.campaign_operation.update
-        campaign.name = f"Agamoto 29 Aug"
-
-        # Assign the resource name with a temporary ID.
-        campaign_service = client.get_service("CampaignService")
-        campaign.resource_name = campaign_service.campaign_path(
-            customer_id, _PERFORMANCE_MAX_CAMPAIGN_TEMPORARY_ID
-        )
-        # Set the budget using the given budget resource name.
-        campaign.campaign_budget = campaign_service.campaign_budget_path(
-            customer_id, _BUDGET_TEMPORARY_ID
-        )
-
-        # Optional fields
-        campaign.start_date = (datetime.now() + timedelta(1)).strftime("%Y%m%d")
-        campaign.end_date = (datetime.now() + timedelta(365)).strftime("%Y%m%d")
-
-        return mutate_operation
-
-    def old_budget_creation(self, customer_id):
-        # Create a budget, which can be shared by multiple campaigns.
-        campaign_budget_operation = self._googleads_client.get_type("CampaignBudgetOperation")
-        campaign_budget = campaign_budget_operation.create
-        campaign_budget.name = f"Agamotto Budget"
-        campaign_budget.amount_micros = 500000
-        campaign_budget.explicitly_shared = False
         try:
-            campaign_budget_response = (
-                self._googleads_client.get_service("CampaignBudgetService").mutate_campaign_budgets(
-                    customer_id=customer_id, operations=[campaign_budget_operation]
-                )
+            mutate_operation = client.get_type("MutateOperation")
+            campaign = mutate_operation.campaign_operation.update
+            campaign.name = f"Agamotto Campaign - Test 12 sep"
+            # Set the campaign status as PAUSED. The campaign is the only entity in
+            # the mutate request that should have its status set.
+            # campaign.status = client.enums.CampaignStatusEnum.PAUSED
+
+            # Set the Final URL expansion opt out. This flag is specific to
+            # Performance Max campaigns. If opted out (True), only the final URLs in
+            # the asset group or URLs specified in the advertiser's Google Merchant
+            # Center or business data feeds are targeted.
+            # If opted in (False), the entire domain will be targeted. For best
+            # results, set this value to false to opt in and allow URL expansions. You
+            # can optionally add exclusions to limit traffic to parts of your website.
+            campaign.url_expansion_opt_out = False
+
+            # Assign the resource name with a temporary ID.
+            campaign_service = client.get_service("CampaignService")
+            campaign.resource_name = campaign_service.campaign_path(
+                customer_id, campaign_id
             )
-            return campaign_budget_response
-        except Exception as ex:
-            raise ex
-        
-    def old_campaign_update(self, customer_id, campaign_id):
-        campaign_service = self._googleads_client.get_service("CampaignService")
-        campaign_operation = self._googleads_client.get_type("CampaignOperation")
-        campaign = campaign_operation.update
-        campaign.resource_name = campaign_service.campaign_path(
-            customer_id, campaign_id
-        )
-        campaign_budget_response = self.old_budget_creation(customer_id=customer_id)
-        print(campaign_budget_response.results[0].resource_name)
-        campaign.campaign_budget = campaign_budget_response.results[0].resource_name
-    
-        try:
+
+            # Set the budget using the given budget resource name.
+            campaign.campaign_budget = campaign_service.campaign_budget_path(
+                customer_id, campaign_id
+            )
+
             self._googleads_client.copy_from(
-                campaign_operation.update_mask,
+                mutate_operation.campaign_operation.update_mask,
                 protobuf_helpers.field_mask(None, campaign._pb),
             )
-            campaign_response = campaign_service.mutate_campaigns(
-                customer_id=customer_id, operations=[campaign_operation]
-            )
-            print(f"Updated campaign {campaign_response.results[0].resource_name}.")
+
+            return mutate_operation
         except Exception as ex:
             raise ex
+        # [END add_performance_max_campaign_3]

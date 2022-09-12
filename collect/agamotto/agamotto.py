@@ -32,6 +32,7 @@ class Agamotto():
     def load_model(self):
         # TODO Create new Model
         # model = torch.hub.load('ultralytics/yolov5', 'custom', path="weights/crowdhuman_yolov5m.pt")
+        model = None
         return model
 
     def score_frame(self, frame):

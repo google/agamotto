@@ -57,8 +57,8 @@ def get_agamotto_sales_visits_query(project, dataset):
 
 def get_agamotto_deltas_query(project, dataset):
     query_agamotto_deltas = """
-    DECLARE table_7_interval DEFAULT 5;
-    DECLARE table_14_interval DEFAULT 6;
+    DECLARE table_7_interval DEFAULT 7;
+    DECLARE table_14_interval DEFAULT 8;
     CREATE OR REPLACE TABLE `{project}.{dataset}.agamotto_deltas` AS (
           WITH
              sales_visits_7_table AS (
