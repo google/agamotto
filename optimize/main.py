@@ -13,6 +13,7 @@
 # limitations under the License.
 from config.read_from_yaml import read_from_yaml 
 from config.big_query import BigQuery
+from config.cloud_storage import CloudStorage
 from config.spreadsheet import Spreadsheet
 from ads.campaign import Campaign
 from utils.logger import logger
@@ -21,17 +22,19 @@ from utils.logger import logger
 class Agamotto:
     def __init__(self):
         config = read_from_yaml()
-        
-        bigquery = BigQuery(config=config)
-        bigquery.init_database()
-        bigquery_deltas = bigquery.get_deltas()
 
-        #print(deltas_list)
+        cloud_storage = CloudStorage(config=config)
+        cloud_storage_deltas = cloud_storage.process_deltas()
+
+        #bigquery = BigQuery(config=config)
+        #bigquery.init_database()
+        #bigquery_deltas = bigquery.get_deltas()
+
         spreadsheet = Spreadsheet(config=config)
         campaign_map = spreadsheet.process_spreadsheet_configuration()
 
         campaign = Campaign(config=config)
-        campaign.process_campaign_map(campaign_map, bigquery_deltas)
+        campaign.process_campaign_map(campaign_map, cloud_storage_deltas)
 
 if __name__ == '__main__':
     # generate agamotto.yaml during deploy by client input

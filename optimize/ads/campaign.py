@@ -27,8 +27,14 @@ from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads import oauth2
 from google.api_core import protobuf_helpers
 from utils.logger import logger
+from enum import Enum
 
 _BUDGET_TEMPORARY_ID = -1
+
+class Operation(Enum):
+    INCREASE = "increase"
+    DECREASE = "decrease"
+
 
 class Campaign:
 
@@ -49,24 +55,32 @@ class Campaign:
         try:
             for row in map:
                 customer_id = row['CustomerId']
+                multiplier = row['Multiplier']
+                max_amount = row['MaxAmount']
+                min_amount = row['MinAmount']
                 campaign_id = row['CampaignId']
-                store_id = row['StoreId'].split(',')
+                store_ids = row['StoreId'].split(',')
                 sales_up_threshold = int(row['SalesUpThreshold']) + 100
                 sales_down_threshold = 100 - int(row['SalesDownThreshold'])
-                visits_up_threshold = int(row['VisitsUpThreshold']) + 100
-                visits_down_threshold = 100 - int(row['VisitsDownThreshold'])
-                for id in store_id:
-                    if int(id) in deltas:
-                        (delta_sales, delta_count) = deltas[int(id)]
-                        # 120, 116 - 80, 116
-                        if delta_sales < sales_down_threshold:
-                            logger(self.__class__.__name__).info(f"Updating campaign for StoreId: {id}")
-                            self.update_performance_max_campaign(customer_id,campaign_id)
-                            # campaign.update_campaign_status(customer_id,campaign_id, "enable")
-                        if delta_count < visits_down_threshold:
-                            logger(self.__class__.__name__).info(f"Updating campaign for StoreId: {id}")
-                            self.update_performance_max_campaign(customer_id,campaign_id)
-                            # campaign.update_campaign_status(customer_id,campaign_id, "enable")
+                mean_group = 0
+                
+                for id in store_ids:
+                    if id in deltas:
+                        delta_sales = float(deltas[id][0])
+                        mean_group += delta_sales
+                        logger(self.__class__.__name__).info(f"Value of delta sales for store: {id} delta: {delta_sales}")
+                    else:
+                        store_ids.remove(id)
+                mean_group = mean_group / len(store_ids)
+                logger(self.__class__.__name__).info(f"Value of delta for group: {store_ids} is: {mean_group}")
+                if mean_group <= sales_down_threshold:
+                    logger(self.__class__.__name__).info(f"Group delta ({mean_group}) is lower than the lower threshold ({sales_down_threshold}), increasing budget")
+                    self.update_performance_max_campaign(customer_id,campaign_id, multiplier, max_amount, min_amount, Operation.INCREASE)
+                elif mean_group >= sales_up_threshold:
+                    logger(self.__class__.__name__).info(f"Group delta ({mean_group}) is greater than the upper threshold ({sales_up_threshold}), decreasing budget") 
+                    self.update_performance_max_campaign(customer_id,campaign_id, multiplier, max_amount, min_amount, Operation.DECREASE)
+                else:
+                    logger(self.__class__.__name__).info(f"Group delta ({mean_group}) is between the lower ({sales_down_threshold}) and upper ({sales_up_threshold}) thresholds, no update needed")
         except Exception as ex:
             raise ex
 
@@ -98,18 +112,20 @@ class Campaign:
         )
         logger(self.__class__.__name__).info(f"Campaign updated for: {campaign_response.results[0].resource_name}")
 
-    def update_performance_max_campaign(self, customer_id, campaign_id):
+    def update_performance_max_campaign(self, customer_id, campaign_id , multiplier, max_amount, min_amount, op):
         googleads_service = self._googleads_client.get_service("GoogleAdsService")
-        campaign_budget_operation = self.update_campaign_budget_operation(self._googleads_client, customer_id, campaign_id)
-        logger(self.__class__.__name__).info(f"Campaign updated for: {campaign_budget_operation}")
-        #performance_max_campaign_operation = (self.create_performance_max_campaign_operation(self._googleads_client,customer_id, campaign_id))
-        #logger(self.__class__.__name__).info(f"Campaign updated for: {performance_max_campaign_operation}")
-        mutate_operations = [campaign_budget_operation]
-        response = googleads_service.mutate(customer_id=customer_id, mutate_operations=mutate_operations)
-        logger(self.__class__.__name__).info(f"Campaign updated for: {response}")
+        campaign_budget_operation = self.update_campaign_budget_operation(self._googleads_client, customer_id, campaign_id, multiplier, max_amount, min_amount, op)
+        if campaign_budget_operation != None:
+            logger(self.__class__.__name__).info(f"Campaign updated for: {campaign_budget_operation}")    
+            mutate_operations = [campaign_budget_operation]
+            response = googleads_service.mutate(customer_id=customer_id, mutate_operations=mutate_operations)
+            logger(self.__class__.__name__).info(f"Campaign updated for: {response}")
+        else: 
+            logger(self.__class__.__name__).info(f"Campaign budget cannot be updated.")
+        
 
 
-    def update_campaign_budget_operation(self, client, customer_id, campaign_id):
+    def update_campaign_budget_operation(self, client, customer_id, campaign_id, multiplier, max_amount, min_amount, op):
         """Creates a MutateOperation that creates a new CampaignBudget.
         A temporary ID will be assigned to this campaign budget so that it can be
         referenced by other objects being created in the same Mutate request.
@@ -127,7 +143,8 @@ class Campaign:
             SELECT
               campaign.id,
               campaign.name,
-              campaign.campaign_budget
+              campaign.campaign_budget,
+              campaign_budget.amount_micros
             FROM campaign
             where campaign.id = {campaign_id}
             ORDER BY campaign.id  """
@@ -138,71 +155,89 @@ class Campaign:
                 for row in batch.results:
                     logger(self.__class__.__name__).info(f"Campaign info {row}")
                     resource_name = row.campaign.campaign_budget
-            
-            mutate_operation = client.get_type("MutateOperation")
-            campaign_budget_operation = mutate_operation.campaign_budget_operation
-            campaign_budget = campaign_budget_operation.update
-            campaign_budget.amount_micros = 100000
-            # The budget period already defaults to DAILY.
-            # A Performance Max campaign cannot use a shared campaign budget.
-            campaign_budget.explicitly_shared = False
-            # Set a temporary ID in the budget's resource name so it can be referenced
-            # by the campaign in later steps
-            
-            campaign_budget.resource_name = resource_name
-            self._googleads_client.copy_from(
-                mutate_operation.campaign_budget_operation.update_mask,
-                protobuf_helpers.field_mask(None, campaign_budget._pb),
-            )            
-    
-            return mutate_operation
+                    actual_budget = float(row.campaign_budget.amount_micros)
+
+            if op == Operation.INCREASE:
+                updated_budget = actual_budget + (actual_budget * float(multiplier))
+            else:
+                updated_budget = actual_budget - (actual_budget * float(multiplier))
+
+            logger(self.__class__.__name__).info(f"Calculated: {min_amount}, {updated_budget}, {max_amount}")
+
+            if float(min_amount) <= updated_budget <= float(max_amount):
+                mutate_operation = client.get_type("MutateOperation")
+                campaign_budget_operation = mutate_operation.campaign_budget_operation
+                campaign_budget = campaign_budget_operation.update
+                campaign_budget.amount_micros = updated_budget
+                campaign_budget.explicitly_shared = False
+                campaign_budget.resource_name = resource_name
+                self._googleads_client.copy_from(
+                    mutate_operation.campaign_budget_operation.update_mask,
+                    protobuf_helpers.field_mask(None, campaign_budget._pb),
+                )            
+                return mutate_operation
+            else:
+                logger(self.__class__.__name__).info(f"Proposed budget overlaped: {min_amount}, {updated_budget}, {max_amount}")
+                return None
         except Exception as ex:
             raise ex
-    
-    def create_performance_max_campaign_operation(self, client, customer_id, campaign_id):
-        """Creates a MutateOperation that creates a new Performance Max campaign.
-        A temporary ID will be assigned to this campaign so that it can
-        be referenced by other objects being created in the same Mutate request.
+
+    def update_campaign_location_group(self, customer_id):
+        """Creates a MutateOperation that creates a new CampaignBudget.
+        A temporary ID will be assigned to this campaign budget so that it can be
+        referenced by other objects being created in the same Mutate request.
         Args:
             client: an initialized GoogleAdsClient instance.
             customer_id: a client customer ID.
         Returns:
-            a MutateOperation that creates a campaign.
+            a MutateOperation that creates a CampaignBudget.
         """
         try:
-            mutate_operation = client.get_type("MutateOperation")
-            campaign = mutate_operation.campaign_operation.update
-            campaign.name = f"Agamotto Campaign - Test 12 sep"
-            # Set the campaign status as PAUSED. The campaign is the only entity in
-            # the mutate request that should have its status set.
-            # campaign.status = client.enums.CampaignStatusEnum.PAUSED
+            ga_service = self._googleads_client.get_service("GoogleAdsService")
 
-            # Set the Final URL expansion opt out. This flag is specific to
-            # Performance Max campaigns. If opted out (True), only the final URLs in
-            # the asset group or URLs specified in the advertiser's Google Merchant
-            # Center or business data feeds are targeted.
-            # If opted in (False), the entire domain will be targeted. For best
-            # results, set this value to false to opt in and allow URL expansions. You
-            # can optionally add exclusions to limit traffic to parts of your website.
-            campaign.url_expansion_opt_out = False
+            #query = f"""SELECT feed_item_set.feed, feed_item_set.display_name, feed_item_set.feed_item_set_id FROM feed_item_set WHERE feed_item_set.display_name = 'Feed Item Set Agamotto'"""
 
-            # Assign the resource name with a temporary ID.
-            campaign_service = client.get_service("CampaignService")
-            campaign.resource_name = campaign_service.campaign_path(
-                customer_id, campaign_id
+            query = f"""SELECT feed.id from feed where customer.id = '{customer_id}'"""
+
+            stream = ga_service.search_stream(customer_id=customer_id, query=query)
+
+            for batch in stream:
+                for row in batch.results:
+                    logger(self.__class__.__name__).info(f"Campaign info {row}")
+                    #feed_item_set_resource_name = row.feed_item_set.resource_name
+                    #feed_resource_name = row.feed_item_set.feed
+                    feed_id = row.feed.id
+
+            feed_item_set_service = self._googleads_client.get_service("FeedItemSetService")
+            feed_item_set_operation = self._googleads_client.get_type("FeedItemSetOperation")
+
+            feed_item_set = feed_item_set_operation.create
+            # feed_item_set.feed = feed_resource_name
+            #feed_item_set.resource_name = feed_item_set_resource_name
+            feed_resource_name =  self._googleads_client.get_service("FeedService").feed_path(
+                customer_id, feed_id
             )
+            feed_item_set.feed = feed_resource_name
+            feed_item_set.display_name = f"Location Group - Agamotto"
 
-            # Set the budget using the given budget resource name.
-            campaign.campaign_budget = campaign_service.campaign_budget_path(
-                customer_id, campaign_id
+            dynamic_location_set_filter = feed_item_set.dynamic_location_set_filter
+            business_name_filter = dynamic_location_set_filter.business_name_filter
+            business_name_filter.business_name = 'Own'
+            business_name_filter.filter_type = self._googleads_client.enums.FeedItemSetStringFilterTypeEnum.EXACT
+
+            # self._googleads_client.copy_from(
+            #     feed_item_set_operation.update_mask,
+            #     protobuf_helpers.field_mask(None, feed_item_set._pb),
+            # )
+
+            response = feed_item_set_service.mutate_feed_item_sets(
+                customer_id=customer_id, operations=[feed_item_set_operation]
+            )   
+
+            print(
+               "Updated a feed item set with resource name: "
+                    f"'{response}'"
             )
-
-            self._googleads_client.copy_from(
-                mutate_operation.campaign_operation.update_mask,
-                protobuf_helpers.field_mask(None, campaign._pb),
-            )
-
-            return mutate_operation
+            
         except Exception as ex:
             raise ex
-        # [END add_performance_max_campaign_3]

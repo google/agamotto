@@ -30,8 +30,8 @@ SCOPES = ['https://www.googleapis.com/auth/adwords',
           'https://www.googleapis.com/auth/ddmconversions',
           "https://www.googleapis.com/auth/analytics.edit",
           'https://www.googleapis.com/auth/spreadsheets',
-          'https://www.googleapis.com/auth/gmail.send',
-          'https://www.googleapis.com/auth/display-video'
+          'https://www.googleapis.com/auth/userinfo.email',
+          'https://www.googleapis.com/auth/drive.readonly'
           ]
 
 # The redirect URI set for the given Client ID. The redirect URI for Client ID

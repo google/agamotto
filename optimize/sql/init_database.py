@@ -57,8 +57,8 @@ def get_agamotto_sales_visits_query(project, dataset):
 
 def get_agamotto_deltas_query(project, dataset):
     query_agamotto_deltas = """
-    DECLARE table_7_interval DEFAULT 7;
-    DECLARE table_14_interval DEFAULT 8;
+    DECLARE table_7_interval DEFAULT 9;
+    DECLARE table_14_interval DEFAULT 10;
     CREATE OR REPLACE TABLE `{project}.{dataset}.agamotto_deltas` AS (
           WITH
              sales_visits_7_table AS (
@@ -117,3 +117,59 @@ def get_agamotto_deltas_query(project, dataset):
     );
     """.format(project=project, dataset=dataset)
     return query_agamotto_deltas
+
+
+def get_agamotto_sales_query(project, dataset):
+    query_agamotto_sales_visits = """
+      CREATE OR REPLACE TABLE `{project}.{dataset}.agamotto_sales_visits` AS (
+          WITH
+             sales_table AS (
+                 SELECT 
+                   SUM(daily_sales_table.Vlr_Venda) as day_sales,
+                   daily_sales_table.Filial as store_id,
+                   DATE(Data) as day_time,
+                 FROM 
+                   `{project}.{dataset}.store` as store_table
+                 INNER JOIN 
+                   `{project}.{dataset}.sales` as daily_sales_table
+                 ON  
+                   store_table.filial_key = daily_sales_table.Filial
+                 GROUP BY 2,3
+             ), 
+             visits_table AS (
+              SELECT 
+                SUM(daily_count_table.count_in) as day_count,
+                DATE(daily_count_table.starttime) as day_time,
+                store_table.filial_key as store_id
+              FROM 
+                `{project}.{dataset}.count` as daily_count_table
+              INNER JOIN 
+                `{project}.{dataset}.stream` as stream_table
+              ON  
+                daily_count_table.id_stream = stream_table.id_stream
+              INNER JOIN
+                `{project}.{dataset}.device` as device_table
+              ON
+                stream_table.mac_address = device_table.mac_address
+              INNER JOIN
+                `{project}.{dataset}.store` as store_table
+              ON
+                device_table.branch = store_table.cnpj
+              GROUP BY 2,3
+             ),
+             sales_visits_table AS (
+               SELECT
+                 sales_table.day_sales,
+                 visits_table.day_count,
+                 sales_table.day_time,
+                 sales_table.store_id
+               FROM sales_table
+               INNER JOIN visits_table
+               ON sales_table.store_id = visits_table.store_id
+               WHERE 
+               sales_table.day_time = visits_table.day_time
+             )
+             SELECT * FROM sales_visits_table
+      );
+    """.format(project=project, dataset=dataset)
+    return query_agamotto_sales_visits

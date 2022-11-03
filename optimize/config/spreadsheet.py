@@ -50,10 +50,10 @@ class Spreadsheet:
     
 
     #TODO make columns dynamic on spreadsheet_range
-    def get_range(self, spreadsheet_id, spreadsheet_tab_name = "Config", spreadsheet_range = "A1:H"):
+    def get_range(self, spreadsheet_id, spreadsheet_tab_name = "Config", spreadsheet_range = "A1:L"):
         return self._get_sheet_service().values().get(spreadsheetId=spreadsheet_id, range=spreadsheet_tab_name + "!" + spreadsheet_range).execute()
 
-    def get_value(self, sheet_id, spreadsheet_tab_name = "Config", range = "A1:H"):
+    def get_value(self, sheet_id, spreadsheet_tab_name = "Config", range = "A1:L"):
         try:
           range = self.get_range(sheet_id, spreadsheet_tab_name, range)
         except Exception:

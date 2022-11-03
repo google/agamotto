@@ -20,7 +20,7 @@ from utils.logger import logger
 # Local deploy
 # gcloud auth application-default login (/Users/robsantos/.config/gcloud/application_default_credentials.json)
 #
-#
+# gcloud auth application-default login --scopes=https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/bigquery
 #
 # gcloud config set project google.com:robsantos-agamotto
 
@@ -86,6 +86,6 @@ class BigQuery:
         logger(self.__class__.__name__).info("Reading table agamotto_deltas...")
         query = """
             SELECT * FROM `{project}.{dataset}.agamotto_deltas`
-        """.format(project=self._config['gcloud_write_project'], dataset=self._config['gcloud_read_dataset'])
+        """.format(project=self._config['gcloud_read_project'], dataset=self._config['gcloud_read_dataset'])
         deltas = self.execute_query(query)
         return self.process_deltas(deltas=deltas)

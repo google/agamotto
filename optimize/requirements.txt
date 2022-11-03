@@ -1,9 +1,11 @@
 google-ads
 google-cloud
 google-cloud-bigquery
+google-cloud-storage
 grpcio
 google-api-python-client 
 google-auth-httplib2 
 google-auth-oauthlib
 pandas
 Flask
+dask
