@@ -55,21 +55,22 @@ class Campaign:
         try:
             for row in map:
                 customer_id = row['CustomerId']
-                multiplier = row['Multiplier']
-                max_amount = row['MaxAmount']
-                min_amount = row['MinAmount']
+                multiplier = row['BudgetMultiplier']
+                max_amount = row['BudgetMaxAmount']
+                min_amount = row['BudgetMinAmount']
                 campaign_id = row['CampaignId']
                 store_ids = row['StoreId'].split(',')
                 sales_up_threshold = int(row['SalesUpThreshold']) + 100
                 sales_down_threshold = 100 - int(row['SalesDownThreshold'])
                 mean_group = 0
                 
-                for id in store_ids:
+                for id in store_ids[:]:
                     if id in deltas:
                         delta_sales = float(deltas[id][0])
                         mean_group += delta_sales
                         logger(self.__class__.__name__).info(f"Value of delta sales for store: {id} delta: {delta_sales}")
                     else:
+                        logger(self.__class__.__name__).info(f"Removing {id}")
                         store_ids.remove(id)
                 mean_group = mean_group / len(store_ids)
                 logger(self.__class__.__name__).info(f"Value of delta for group: {store_ids} is: {mean_group}")

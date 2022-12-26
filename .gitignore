@@ -17,6 +17,7 @@ output_videos/*
 collect/agamotto/weights/
 optimize/agamotto.yaml
 optimize/bq_credentials.json
+optimize
 
 
 # Distribution / packaging
