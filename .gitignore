@@ -18,6 +18,8 @@ collect/agamotto/weights/
 optimize/agamotto.yaml
 optimize/bq_credentials.json
 optimize
+measure/agamotto/data*
+measure/agamotto/newretina/
 
 
 # Distribution / packaging
