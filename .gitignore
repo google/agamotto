@@ -13,10 +13,13 @@ output_videos/*
 # Agamotto
 *.pt
 *.mp4
+*.mov
+*.avi
+cloud_*
 
 collect/agamotto/weights/
 optimize/agamotto.yaml
-optimize/bq_credentials.json
+measure/bq_credentials.json
 optimize
 measure/agamotto/data*
 measure/agamotto/newretina/

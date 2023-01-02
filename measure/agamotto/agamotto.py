@@ -21,11 +21,16 @@ from retinanet.labelencoder import LabelEncoder
 from retinanet.retinanet import RetinaNet, RetinaNetLoss, get_backbone
 from retinanet.autotune import apply_autotune
 from retinanet.decodepredictions import DecodePredictions
-from retinanet.utils import read_image, read_video
+from retinanet.utils import read_image, prepare_image
 from retinanet.preprocess import preprocess_data
+from config.bigquery import BigQuery
+import cv2
 
 class Agamotto():
     def __init__(self, config):
+
+        # Create a zip file similar to data.zip, that will give a important 
+
         """
         Download weights - Non-training
         """
@@ -40,6 +45,7 @@ class Agamotto():
         self.set_parameters()
         self.init_model()
         self.load_dataset()        
+        # If train is enabled
         #self.autotune_train()
         self.load_weights()
         self.build_inference_model()
@@ -53,7 +59,7 @@ class Agamotto():
         self._model_dir = "newretina/"
         self._label_encoder = LabelEncoder()
 
-        self._num_classes = 80
+        self._num_classes = 1
         self._batch_size = 1
 
         self._learning_rates = [2.5e-06, 0.000625, 0.00125, 0.0025, 0.00025, 2.5e-05]
@@ -116,14 +122,14 @@ class Agamotto():
         (self._train_dataset, self._val_dataset), self._dataset_info = tfds.load(
                 "coco/2017", split=["train", "validation"], with_info=True, data_dir="data"
         )
-        self.int2str = self._dataset_info.features["objects"]["label"].int2str
+        self._int2str = self._dataset_info.features["objects"]["label"].int2str
 
     """
     ## Loading weights
     """
     def load_weights(self):
         # Change this to `model_dir` when not using the downloaded weights
-        weights_dir = "data"
+        weights_dir = "cloud_23_1"
         latest_checkpoint = tf.train.latest_checkpoint(weights_dir)
         self._model.load_weights(latest_checkpoint)
 
@@ -137,10 +143,60 @@ class Agamotto():
         self._inference_model = tf.keras.Model(inputs=image, outputs=detections)
 
     def process_video(self, video_path):
-        read_video(video_path=video_path, inference_model=self._inference_model, int2str=self.int2str)
+        bigquery = BigQuery(None)
+        player = cv2.VideoCapture(video_path)
+
+        frame_width = int(player.get(3))
+        frame_height = int(player.get(4))
     
-    def process_stream(self, stream_path):
-        read_video(video_path=stream_path, inference_model=self._inference_model, int2str=self.int2str)
+        # Define the codec and create VideoWriter object.The output is stored in 'outpy.avi' file.
+        output = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 5, (frame_width,frame_height))
+
+        count = 0
+
+        while player.isOpened():
+
+            ret, frame = player.read()
+            #cv2.imshow("video", frame)
+            #error on cast
+
+            if(ret):     
+                # adding filled rectangle on each frame
+                # add text to retangle
+                image = tf.cast(frame, dtype=tf.float32)
+                #print(image)
+                input_image, ratio = prepare_image(image)
+                detections = self._inference_model.predict(input_image)
+                num_detections = detections.valid_detections[0]
+                class_names = [
+                        self._int2str(int(x)) for x in detections.nmsed_classes[0][:num_detections]
+                ]
+                for box, _cls, score in zip(detections.nmsed_boxes[0][:num_detections] / ratio, class_names, detections.nmsed_scores[0][:num_detections]):
+                    text = "{}: {:.2f}".format(_cls, score)
+                    texttotal = "agamotto_total_count: {:.2f}".format(num_detections)
+                    x1, y1, x2, y2 = box
+                    w, h = x2 - x1, y2 - y1
+                    cv2.rectangle(frame, (x1, y1), (x2, y2),
+                              (0, 255, 0), 1)
+                    cv2.putText(frame, text, (x1, y1-10), cv2.FONT_HERSHEY_DUPLEX, 0.6, (36,255,12), 1)
+                    cv2.putText(frame, texttotal, (100, 100), cv2.FONT_HERSHEY_COMPLEX, 0.9, (36,255,12), 2)
+
+                bigquery.insert_row(num_detections)  
+                output.write(frame)
+                count += 30 # i.e. at 30 fps, this advances one second
+                player.set(cv2.CAP_PROP_POS_FRAMES, count)
+                if cv2.waitKey(1) & 0xFF == ord('s'):
+                    break
+            else:
+                player.release()
+                break
+
+        cv2.destroyAllWindows()
+        output.release()
+        player.release()
+    
+    #def process_stream(self, stream_path):
+    #    read_video(video_path=stream_path, inference_model=self._inference_model, int2str=self.int2str)
 
     def process_image(self, image_path):
         read_image(image_path=image_path, inference_model=self._inference_model, int2str=self.int2str)
