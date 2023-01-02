@@ -19,7 +19,7 @@ cloud_*
 
 collect/agamotto/weights/
 optimize/agamotto.yaml
-measure/bq_credentials.json
+measure/agamotto/bq_credentials.json
 optimize
 measure/agamotto/data*
 measure/agamotto/newretina/
