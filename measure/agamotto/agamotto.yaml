@@ -1,0 +1,26 @@
+gcp_project: "google.com:robsantos-agamotto"
+gcp_dataset: "agamotto_measure"
+gcp_bigquery_table: "agamotto_count"
+location:
+  #-23.563522,-46.6526872
+  #-23.5705533,-46.6435249
+  #-23.5418067,-46.6582475
+  latlong: "-23.563522,-46.6526872"
+  id: 12
+  #Fastshop - Shopping Cidade de São Paulo
+  #Fastshop - Shopping Pátio Paulista
+  #Fastshop - Shopping Higienópolis
+  name: "Fastshop - Shopping Cidade de São Paulo"
+timezone: 'America/Sao_Paulo'
+model:
+  tensorflow_dataset: 'coco/2017'
+  epochs: 6
+  train_dataset_size: 100
+  val_dataset_size: 50
+  save_weights_dir: agamotto_train
+  load_weights_dir: agamotto_data
+  num_classes: 1
+  batch_size: 1
+  confidence_threshold: 0.30
+  model_optimizer_momentum: 0.9
+  train: False

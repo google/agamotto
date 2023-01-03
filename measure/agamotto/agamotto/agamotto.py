@@ -17,18 +17,20 @@ import zipfile
 from tensorflow import keras
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from retinanet.labelencoder import LabelEncoder
-from retinanet.retinanet import RetinaNet, RetinaNetLoss, get_backbone
-from retinanet.autotune import apply_autotune
-from retinanet.decodepredictions import DecodePredictions
-from retinanet.utils import read_image, prepare_image
-from retinanet.preprocess import preprocess_data
+from .retinanet.labelencoder import LabelEncoder
+from .retinanet.retinanet import RetinaNet, RetinaNetLoss, get_backbone
+from .retinanet.autotune import apply_autotune
+from .retinanet.decodepredictions import DecodePredictions
+from .retinanet.utils import read_image, prepare_image
+from .retinanet.preprocess import preprocess_data
+from datetime import datetime, timezone
 from config.bigquery import BigQuery
+from utils.logger import logger
 import cv2
 
 class Agamotto():
     def __init__(self, config):
-
+        self._config = config
         # Create a zip file similar to data.zip, that will give a important 
 
         """
@@ -44,11 +46,13 @@ class Agamotto():
 
         self.set_parameters()
         self.init_model()
-        self.load_dataset()        
-        # If train is enabled
-        #self.autotune_train()
+        self.load_dataset()
+        if self._config["model"]["train"]:
+            self.autotune_train()
         self.load_weights()
         self.build_inference_model()
+
+        
     
 
 
@@ -56,11 +60,19 @@ class Agamotto():
     ## Setting parameters
     """
     def set_parameters(self):
-        self._model_dir = "newretina/"
+        self._save_weights_dir = self._config["model"]["save_weights_dir"]
         self._label_encoder = LabelEncoder()
 
-        self._num_classes = 1
-        self._batch_size = 1
+        self._num_classes = self._config["model"]["num_classes"]
+        self._batch_size = self._config["model"]["batch_size"]
+        self._confidence_threshold = self._config["model"]["confidence_threshold"]
+        # Change this to `model_dir` when not using the downloaded weights
+        self._load_weights_dir = self._config["model"]["load_weights_dir"]
+        self._train_dataset_size = self._config["model"]["train_dataset_size"]
+        self._val_dataset_size = self._config["model"]["val_dataset_size"]
+        self._epochs = self._config["model"]["epochs"]
+        self._model_optimizer_momentum = self._config["model"]["model_optimizer_momentum"]
+        self._tensorflow_dataset = self._config["model"]["tensorflow_dataset"]
 
         self._learning_rates = [2.5e-06, 0.000625, 0.00125, 0.0025, 0.00025, 2.5e-05]
         self._learning_rate_boundaries = [125, 250, 500, 240000, 360000]
@@ -82,7 +94,7 @@ class Agamotto():
     def set_callbacks(self):
         self._callbacks_list = [
             tf.keras.callbacks.ModelCheckpoint(
-                filepath=os.path.join(self._model_dir, "weights" + "_epoch_{epoch}"),
+                filepath=os.path.join(self._save_weights_dir, "weights" + "_epoch_{epoch}"),
                 monitor="loss",
                 save_best_only=False,
                 save_weights_only=True,
@@ -95,7 +107,7 @@ class Agamotto():
     """
     def compile_model(self):
         loss_fn = RetinaNetLoss(self._num_classes)
-        optimizer = tf.optimizers.SGD(learning_rate=self._learning_rate_fn, momentum=0.9)
+        optimizer = tf.optimizers.SGD(learning_rate=self._learning_rate_fn, momentum=self._model_optimizer_momentum)
         self._model.compile(loss=loss_fn, optimizer=optimizer)
     
     """
@@ -105,11 +117,10 @@ class Agamotto():
         self.compile_model()
         self.set_callbacks()
         self._train_dataset, self._val_dataset = apply_autotune(train_dataset=self._train_dataset, val_dataset=self._val_dataset, batch_size=self._batch_size, label_encoder=self._label_encoder) 
-        epochs = 1
         self._model.fit(
-            self._train_dataset.take(50),
-            validation_data=self._val_dataset.take(20),
-            epochs=epochs,
+            self._train_dataset.take(self._train_dataset_size),
+            validation_data=self._val_dataset.take(self._val_dataset_size),
+            epochs=self._epochs,
             callbacks=self._callbacks_list,
             verbose=1,
         )
@@ -120,7 +131,7 @@ class Agamotto():
     def load_dataset(self):
         #  set `data_dir=None` to load the complete dataset
         (self._train_dataset, self._val_dataset), self._dataset_info = tfds.load(
-                "coco/2017", split=["train", "validation"], with_info=True, data_dir="data"
+                self._tensorflow_dataset, split=["train", "validation"], with_info=True, data_dir="data"
         )
         self._int2str = self._dataset_info.features["objects"]["label"].int2str
 
@@ -128,9 +139,7 @@ class Agamotto():
     ## Loading weights
     """
     def load_weights(self):
-        # Change this to `model_dir` when not using the downloaded weights
-        weights_dir = "cloud_23_1"
-        latest_checkpoint = tf.train.latest_checkpoint(weights_dir)
+        latest_checkpoint = tf.train.latest_checkpoint(self._load_weights_dir)
         self._model.load_weights(latest_checkpoint)
 
     """
@@ -139,11 +148,11 @@ class Agamotto():
     def build_inference_model(self):
         image = tf.keras.Input(shape=[None, None, 3], name="image")
         predictions = self._model(image, training=False)
-        detections = DecodePredictions(confidence_threshold=0.30)(image, predictions)
+        detections = DecodePredictions(confidence_threshold=self._confidence_threshold)(image, predictions)
         self._inference_model = tf.keras.Model(inputs=image, outputs=detections)
 
     def process_video(self, video_path):
-        bigquery = BigQuery(None)
+        bigquery = BigQuery(self._config)
         player = cv2.VideoCapture(video_path)
 
         frame_width = int(player.get(3))
@@ -154,6 +163,7 @@ class Agamotto():
 
         count = 0
 
+        detections_count = []
         while player.isOpened():
 
             ret, frame = player.read()
@@ -181,7 +191,8 @@ class Agamotto():
                     cv2.putText(frame, text, (x1, y1-10), cv2.FONT_HERSHEY_DUPLEX, 0.6, (36,255,12), 1)
                     cv2.putText(frame, texttotal, (100, 100), cv2.FONT_HERSHEY_COMPLEX, 0.9, (36,255,12), 2)
 
-                bigquery.insert_row(num_detections)  
+                logger(self.__class__.__name__).info("Adding {} to batch".format([num_detections, datetime.now().strftime("%Y-%m-%dT%H:%M:%S")]))
+                detections_count.append([num_detections, datetime.now().strftime("%Y-%m-%dT%H:%M:%S")])
                 output.write(frame)
                 count += 30 # i.e. at 30 fps, this advances one second
                 player.set(cv2.CAP_PROP_POS_FRAMES, count)
@@ -190,6 +201,9 @@ class Agamotto():
             else:
                 player.release()
                 break
+        logger(self.__class__.__name__).info(f"Attempting to stream insert {len(detections_count)} rows into BigQuery...")
+        bigquery.insert(detections_count) 
+        
 
         cv2.destroyAllWindows()
         output.release()

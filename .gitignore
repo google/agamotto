@@ -17,13 +17,12 @@ output_videos/*
 *.avi
 cloud_*
 
-collect/agamotto/weights/
-optimize/agamotto.yaml
+measure/agamotto/agamotto_train
+measure/agamotto/agamotto_data
 measure/agamotto/bq_credentials.json
-optimize
 measure/agamotto/data*
 measure/agamotto/newretina/
-
+optimize
 
 # Distribution / packaging
 .Python

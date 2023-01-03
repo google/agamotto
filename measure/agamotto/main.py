@@ -12,12 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from config.bigquery import BigQuery
-from agamotto import Agamotto
+from utils.read_from_yaml import read_from_yaml
+from agamotto.agamotto import Agamotto
+import os
 
 if __name__ == '__main__':
-    bigquery = BigQuery(None)
+
+    
+    config = read_from_yaml()
+
+    os.environ['TZ'] = config['timezone']
+    
+    bigquery = BigQuery(config)
     bigquery.create_count_table()
     
-    agamotto = Agamotto(None)
-    agamotto.process_video(video_path="fastshop_recording.mov")
+    agamotto = Agamotto(config)
+    agamotto.process_video(video_path="shopping_3.mp4")
 
