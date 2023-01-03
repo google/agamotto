@@ -16,12 +16,13 @@ output_videos/*
 *.mov
 *.avi
 cloud_*
+*.zip
 
-measure/agamotto/agamotto_train
-measure/agamotto/agamotto_data
-measure/agamotto/bq_credentials.json
-measure/agamotto/data*
-measure/agamotto/newretina/
+agamotto/agamotto_train
+agamotto/agamotto_data
+agamotto/bq_credentials.json
+agamotto/data*
+agamotto/newretina/
 optimize
 
 # Distribution / packaging

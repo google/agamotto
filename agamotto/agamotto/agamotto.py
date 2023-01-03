@@ -36,15 +36,9 @@ class Agamotto():
         """
         Download weights - Non-training
         """
-        #url = "https://github.com/googlestaging/agamotto/blob/main/measure/agamotto/agamotto_data.zip"
-        #filename = os.path.join(os.getcwd(), "agamotto_data.zip")
-        #keras.utils.get_file(filename, url)
-
-        with zipfile.ZipFile("{}.zip".format(self._config["model"]["load_weights_dir"]), "r") as z_fp:
-            z_fp.extractall("./")
         
-
         self.set_parameters()
+        self.download_weights()
         self.init_model()
         self.load_dataset()
         if self._config["model"]["train"]:
@@ -52,7 +46,17 @@ class Agamotto():
         self.load_weights()
         self.build_inference_model()
 
-        
+    
+    """
+    ## Setting parameters
+    """
+    def download_weights(self):
+        url = "https://github.com/roberto-goncalves/datasets/releases/download/v0/{}.zip".format(self._load_weights_dir)
+        filename = os.path.join(os.getcwd(), "{}.zip".format(self._load_weights_dir))
+        keras.utils.get_file(filename, url)
+        with zipfile.ZipFile("{}.zip".format(self._load_weights_dir), "r") as z_fp:
+            z_fp.extractall("./")
+
     
 
 
@@ -73,6 +77,10 @@ class Agamotto():
         self._epochs = self._config["model"]["epochs"]
         self._model_optimizer_momentum = self._config["model"]["model_optimizer_momentum"]
         self._tensorflow_dataset = self._config["model"]["tensorflow_dataset"]
+
+        self._video_write_output_fps = self._config["video"]["write_output_fps"]
+        self._video_read_input_fps = self._config["video"]["read_input_fps"]
+        self._video_output_location = self._config["video"]["output_location"]
 
         self._learning_rates = [2.5e-06, 0.000625, 0.00125, 0.0025, 0.00025, 2.5e-05]
         self._learning_rate_boundaries = [125, 250, 500, 240000, 360000]
@@ -159,7 +167,7 @@ class Agamotto():
         frame_height = int(player.get(4))
     
         # Define the codec and create VideoWriter object.The output is stored in 'outpy.avi' file.
-        output = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 5, (frame_width,frame_height))
+        output = cv2.VideoWriter(self._video_output_location,cv2.VideoWriter_fourcc('M','J','P','G'), self._video_write_output_fps, (frame_width,frame_height))
 
         count = 0
 
@@ -194,7 +202,7 @@ class Agamotto():
                 logger(self.__class__.__name__).info("Adding {} to batch".format([num_detections, datetime.now().strftime("%Y-%m-%dT%H:%M:%S")]))
                 detections_count.append([num_detections, datetime.now().strftime("%Y-%m-%dT%H:%M:%S")])
                 output.write(frame)
-                count += 30 # i.e. at 30 fps, this advances one second
+                count += self._video_read_input_fps # i.e. at 30 fps, this advances one second
                 player.set(cv2.CAP_PROP_POS_FRAMES, count)
                 if cv2.waitKey(1) & 0xFF == ord('s'):
                     break

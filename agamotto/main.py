@@ -27,5 +27,5 @@ if __name__ == '__main__':
     bigquery.create_count_table()
     
     agamotto = Agamotto(config)
-    agamotto.process_video(video_path="shopping_3.mp4")
+    agamotto.process_video(video_path=config["video"]["input_location"])
 
