@@ -14,4 +14,4 @@
 
 protocols: [tcp]
 paths:
-  live.stream:
+ live.stream:

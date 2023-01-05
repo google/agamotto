@@ -14,13 +14,13 @@
 
 import cv2
 
-input_list = ["input_videos/shopping_1.mp4", "input_videos/shopping_2.mp4", "input_videos/shopping_3.mp4"]
+input_list = ["input_videos/fastshop_recording.mov", "input_videos/shopping_2.mp4", "input_videos/shopping_3.mp4"]
 
 
 class Video(object):
     def __init__(self):
        self.counter = 0
-       self.video = cv2.VideoCapture(input_list[0])
+       self.video = cv2.VideoCapture(0)
     
     def __del__(self):
         self.video.release()
@@ -31,7 +31,7 @@ class Video(object):
             self.counter += 1
             if self.counter == 3:
                 self.counter = 0
-            self.video = cv2.VideoCapture(input_list[0])
+            self.video = cv2.VideoCapture(0)
             ret, frame = self.video.read()
         ret, jpeg = cv2.imencode('.jpg', frame)
         return jpeg.tobytes()

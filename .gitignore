@@ -20,9 +20,10 @@ cloud_*
 
 agamotto/agamotto_train
 agamotto/agamotto_data
-agamotto/bq_credentials.json
+agamotto/gcp_credentials.json
 agamotto/data*
 agamotto/newretina/
+agamotto/frame-0.jpg
 optimize
 
 # Distribution / packaging

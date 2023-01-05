@@ -1,33 +1,36 @@
+![Alt text](images/Logo.jpg?raw=true "Logo")
+
 # Agamotto
 
-Agamotto is a open-source stack that uses IoT (Camera, Beacons, etc) to gather data from physical spaces and use it to deliver insights and intelligence.
+Agamotto is a open-source solution that uses Machine Learning (Computer Vision) to gather insights from physical locations using IoT. It uses Computer Vision to read from cameras using OpenCV and send the data to BigQuery. Then, it's possible to use DataStudio do connect to the table and see the results.
 
-## Components and Architecture
+![Alt text](images/example.jpg?raw=true "Example")
 
-Agamotto's initial stack have:
+## Pre-Requisites
 
-1. Agamotto - Is a simple API that is triggered by Prometheus and read from Stream on every scrape
-2. Grafana - Grafana is a multi-platform open source analytics and interactive visualization web application. It provides charts, graphs, and alerts for the web when connected to supported data sources (https://grafana.com/)
-3. Prometheus - An open-source monitoring system with a dimensional data model, flexible query language, efficient time series database and modern alerting approach. (https://prometheus.io/)
-4. Stream - A camera circuit simulator that reads a mp4 file and expose it in a URL
+1. GCP - BigQuery and DataStudio (If you want to save)
+2. Python 3.7+
+3. 2GB+ RAM, 16GB+ GPU (If you want to train) 
+4. Available stream device, the default is a webcam (VideoCapture(0))
 
-## How to Deploy
+## How to Use
 
-Agamotto's  uses docker-compose and docker to run the initial stack.
-
-1. Install Docker - https://www.docker.com/
-2. Install docker-compose https://docs.docker.com/compose/
-3. Go to Agamotto's root folder and execute: 
+1. Insert your parameters in agamotto/agamotto.yaml
+2. Go to Agamotto's root folder and execute: 
 
 ``` shell
-git clone https://github.com/google/agamotto
-mkdir agamotto
-docker-compose up
+pip install --no-cache-dir -r requirements.txt
+cd agamotto
+python3.7 main.py
 ```
 
-## Services
+3. It will download the weights and datasets (if you want to train), this could take up to 30min to 1 hour.
+4. If you want to use your own webcam go to the stream folder and execute:
 
-1. Agamotto runs on 0.0.0.0:9097, it only exports metrics for prometheus to scrape
-2. Grafana runs on 0.0.0.0:3000, with admin/admin user and password
-3. Prometheus runs on 0.0.0.0:9090, with no authentication
-4. Stream runs on 0.0.0.0:9098, with the video feed
+``` shell
+pip install --no-cache-dir -r requirements.txt
+cd stream
+python3.7 main.py
+```
+
+

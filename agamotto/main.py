@@ -23,9 +23,10 @@ if __name__ == '__main__':
 
     os.environ['TZ'] = config['timezone']
     
-    bigquery = BigQuery(config)
-    bigquery.create_count_table()
+    if config["gcp"]["save_to_bigquery"]:
+        bigquery = BigQuery(config)
+        bigquery.create_count_table()
     
     agamotto = Agamotto(config)
-    agamotto.process_video(video_path=config["video"]["input_location"])
+    agamotto.process_media(config["video"]["input_location"])
 

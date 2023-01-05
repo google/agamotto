@@ -11,9 +11,9 @@ import json
 class BigQuery:
     def __init__(self, config):
         self._bigquery_service = None
-        self._gcp_project = config["gcp_project"]
-        self._gcp_dataset = config["gcp_dataset"]
-        self._gcp_bigquery_table = config["gcp_bigquery_table"]
+        self._gcp_project = config["gcp"]["project"]
+        self._gcp_dataset = config["gcp"]["dataset"]
+        self._gcp_bigquery_table = config["gcp"]["bigquery_table"]
         self._location_latlong = config["location"]["latlong"]
         self._location_id = config["location"]["id"]
         self._location_name = config["location"]["name"]

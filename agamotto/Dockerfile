@@ -18,10 +18,10 @@ WORKDIR /usr/src/app
 COPY requirements.txt ./
 
 ENV GCLOUD_PROJECT google.com:robsantos-agamotto
-ENV GOOGLE_APPLICATION_CREDENTIALS bq_credentials.json
+ENV GOOGLE_APPLICATION_CREDENTIALS gcp_credentials.json
 
 RUN apt-get update
-RUN apt-get install libsm6 libxext6  -y
+RUN apt-get install ffmpeg libsm6 libxext6  -y
 
 RUN python -m pip install --upgrade pip
 
