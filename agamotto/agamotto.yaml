@@ -1,0 +1,85 @@
+# Copyright 2023 Google Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+#
+# limitations under the License.
+
+# GCP Section
+# project: your GCP project
+# dataset: your GCP dataset
+# bigquery_table: Your table to store the number of people, location, and other data (see model/agamotto_model.py)
+# save_to_bigquery: If True, you need to be authenticated to BigQuery before executing (see Dockerfile) 
+
+gcp:
+  project: "myproject"
+  dataset: "mydataset"
+  bigquery_table: "agamotto_count"
+  save_to_bigquery: False
+
+# timezone: Select your timezone (see https://gist.github.com/heyalexej/8bf688fd67d7199be4a1682b3eec7568)
+
+timezone: 'America/Sao_Paulo'
+
+# Physical location data
+# latlong: based on Google Map's latlong for Datastudio, example: "-23.5705533,-46.6435249"
+# id: Your location physical integer id (if you have multiple stores)
+# name: Your location name (like Store Unkown - Shopping Unkown)
+
+location:
+  latlong: "-23.5705533,-46.6435249"
+  id: 1
+  name: "Location Name"
+
+# Agamotto Retinanet Model Configuration
+# tensorflow_dataset: Agamotto uses COCO 2017 from tensorflow_dataset, it's recommended not to change this
+# load_dataset: If True, agamotto will load the whole dataset (25GB)
+# epochs: If train is True, agamotto will use the number of epochs to train the model
+# train_dataset_size: Estimate dataset size, can be up to 50K
+# val_dataset_size: Estimate dataset size, can be up to 5K
+# save_weights_dir: If train is True, agamotto will save your checkpoints into this folder
+# load_weights_dir: If you want to use your model's weights, your load_weights_dir needs to be equal to save_weights_dir
+# num_classes: If you want to train for other classes (see COCO 2017 classes) you can raise this number up to 60. Agamotto's weights is only for persons (class 1)
+# batch_size: Size of batch, raise this accordinly to your infrastructure
+# confidence_threshold: It's the model confidance, can be from 0.00 to 1
+# model_optimizer_momentum: float hyperparameter >= 0 that accelerates gradient descent in the relevant direction and dampens oscillations. Defaults to 0, i.e., vanilla gradient descent.
+# train: If True, it's required to fill the other fields
+# name: Your location name (like Store Unkown - Shopping Unkown)
+
+model:
+  tensorflow_dataset: 'coco/2017'
+  load_dataset: False
+  epochs: 6
+  train_dataset_size: 100
+  val_dataset_size: 50
+  save_weights_dir: agamotto_train
+  load_weights_dir: agamotto_data
+  #create load_weights_url
+  #create load_weights_version
+  num_classes: 1
+  batch_size: 1
+  confidence_threshold: 0.35
+  model_optimizer_momentum: 0.9
+  train: False
+
+# Video Configuration
+# input_location: to use VideoCapture from OpenCV, can be: video.mp4 (is_stream is False), http://127.0.0.1:9098/video_feed (is_stream is True)
+# write_output_fps: If is_stream is False, it will use this to write a video at this fps rate in output_location
+# read_interval: Interval to read the video or stream in seconds
+# output_location: Location to write your video (if is_stream is False)
+# is_stream: Determine if it is a stream or a video, if is a stream, it will create a frame-0.jpg showing the results
+
+video:
+  input_location: "video.mp4"
+  write_output_fps: 5
+  read_interval: 1
+  output_location: "output.avi"
+  is_stream: False
