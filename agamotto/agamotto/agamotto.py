@@ -15,6 +15,8 @@
 
 import os
 import zipfile
+import time
+import cv2
 from tensorflow import keras
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -27,11 +29,24 @@ from .retinanet.preprocess import preprocess_data
 from datetime import datetime, timezone
 from config.bigquery import BigQuery
 from utils.logger import logger
-import time
-import cv2
+
 
 class Agamotto():
+    """
+    Agamotto's main class, here it access retinanet folder
+    then download, train and fit the model based on a input in agamotto.yaml
+
+    #TODO:
+    - decouple midia methods
+    - decouple model methods
+    - create a agnostic class related to any model
+    """
     def __init__(self, config):
+        """
+        The constructor receives the parameters and initialize methods,
+        if model.train is True, then the autotune_train is called
+        """
+
         self._config = config
         self.set_parameters()
         self.download_weights()
@@ -42,24 +57,24 @@ class Agamotto():
         self.load_weights()
         self.build_inference_model()
 
-    
-    """
-    ## Setting parameters
-    """
     def download_weights(self):
+        """
+        Downloading weights for first (or only) executions, it will download, extract and create
+        a folder based on agamotto.yaml file.
+        #TODO Improvements:
+            - Add a download weights URL inside agamotto.yaml
+            - Add a version inside agamotto.yaml
+        """
         url = "https://github.com/roberto-goncalves/datasets/releases/download/v0/{}.zip".format(self._load_weights_dir)
         filename = os.path.join(os.getcwd(), "{}.zip".format(self._load_weights_dir))
         keras.utils.get_file(filename, url)
         with zipfile.ZipFile("{}.zip".format(self._load_weights_dir), "r") as z_fp:
             z_fp.extractall("./")
 
-    
-
-
-    """
-    ## Setting parameters
-    """
     def set_parameters(self):
+        """
+        Set parameters acts as a constructor for model parameters
+        """
         self._save_weights_dir = self._config["model"]["save_weights_dir"]
         self._label_encoder = LabelEncoder()
 
@@ -91,7 +106,7 @@ class Agamotto():
         )
 
     """
-    ## Initialize Model
+    Init model actually instantiate the Retinanet constructor and add the backbone
     """
     def init_model(self):
         resnet50_backbone = get_backbone()
@@ -117,16 +132,20 @@ class Agamotto():
     """
     def compile_model(self):
         loss_fn = RetinaNetLoss(self._num_classes)
-        optimizer = tf.optimizers.SGD(learning_rate=self._learning_rate_fn, momentum=self._model_optimizer_momentum)
+        optimizer = tf.optimizers.SGD(learning_rate=self._learning_rate_fn,
+                        momentum=self._model_optimizer_momentum)
         self._model.compile(loss=loss_fn, optimizer=optimizer)
-    
+
     """
     ## Train and autotune
     """
     def autotune_train(self):
         self.compile_model()
         self.set_callbacks()
-        self._train_dataset, self._val_dataset = apply_autotune(train_dataset=self._train_dataset, val_dataset=self._val_dataset, batch_size=self._batch_size, label_encoder=self._label_encoder) 
+        self._train_dataset, self._val_dataset = apply_autotune(train_dataset=self._train_dataset,
+            val_dataset=self._val_dataset,
+            batch_size=self._batch_size,
+            label_encoder=self._label_encoder)
         self._model.fit(
             self._train_dataset.take(self._train_dataset_size),
             validation_data=self._val_dataset.take(self._val_dataset_size),
@@ -134,14 +153,16 @@ class Agamotto():
             callbacks=self._callbacks_list,
             verbose=1,
         )
-    
+
     """
     ## Load the COCO2017 dataset using TensorFlow Datasets
     """
     def load_dataset(self):
-        #  set `data_dir=None` to load the complete dataset
         (self._train_dataset, self._val_dataset), self._dataset_info = tfds.load(
-                self._tensorflow_dataset, split=["train", "validation"], with_info=True, data_dir=self._datadir
+            self._tensorflow_dataset,
+            split=["train", "validation"],
+            with_info=True,
+            data_dir=self._datadir
         )
         self._int2str = self._dataset_info.features["objects"]["label"].int2str
 
@@ -158,7 +179,8 @@ class Agamotto():
     def build_inference_model(self):
         image = tf.keras.Input(shape=[None, None, 3], name="image")
         predictions = self._model(image, training=False)
-        detections = DecodePredictions(confidence_threshold=self._confidence_threshold)(image, predictions)
+        detections = DecodePredictions(
+            confidence_threshold=self._confidence_threshold)(image, predictions)
         self._inference_model = tf.keras.Model(inputs=image, outputs=detections)
 
 
@@ -170,33 +192,32 @@ class Agamotto():
 
     def process_video(self, video_path):
         player = cv2.VideoCapture(video_path)
-
         frame_width = int(player.get(3))
         frame_height = int(player.get(4))
-
         logger(self.__class__.__name__).info("Loading video {}".format(video_path))
-        output = cv2.VideoWriter(self._video_output_location,cv2.VideoWriter_fourcc('M','J','P','G'), self._video_write_output_fps, (frame_width,frame_height))
-
+        output = cv2.VideoWriter(self._video_output_location,
+            cv2.VideoWriter_fourcc('M','J','P','G'),
+            self._video_write_output_fps,
+            (frame_width,frame_height))
         count = 0
-
         detections_count = []
         while player.isOpened():
-
             ret, frame = player.read()
-            if not ret:     
+            if not ret:
                 logger(self.__class__.__name__).info("Frame was not load correctly, exiting...")
                 break
             detections, ratio, num_detections = self.create_detections(frame)
             logger(self.__class__.__name__).info("Count of persons: {}".format(num_detections))
-            self.draw_boxes_to_frame(frame=frame, detections=detections, num_detections=num_detections, ratio=ratio)
+            self.draw_boxes_to_frame(frame=frame,
+                detections=detections,
+                num_detections=num_detections,
+                ratio=ratio)
             detections_count.append(num_detections)
             output.write(frame)
             count += self._video_read_inverval * 30
             player.set(cv2.CAP_PROP_POS_FRAMES, count)
-
         if self._gcp_save_to_bigquery:
             self.insert_to_bigquery(num_detections=detections_count)
-
         logger(self.__class__.__name__).info("Saving to file {}".format(self._video_output_location))
         cv2.destroyAllWindows()
         output.release()
@@ -247,8 +268,7 @@ class Agamotto():
         for box, _cls, score in zip(detections.nmsed_boxes[0][:num_detections] / ratio, class_names, detections.nmsed_scores[0][:num_detections]):
             text = "{}: {:.2f}".format(_cls, score)
             texttotal = "agamotto_total_count: {:.2f}".format(num_detections)
-            x1, y1, x2, y2 = box
-            w, h = x2 - x1, y2 - y1
+            x1, y1, x2, y2 = box #w, h = x2 - x1, y2 - y1
             cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 1)
             cv2.putText(frame, text, (int(x1), int(y1)-10), cv2.FONT_HERSHEY_DUPLEX, 0.6, (36,255,12), 1)
             cv2.putText(frame, texttotal, (100, 100), cv2.FONT_HERSHEY_COMPLEX, 0.9, (36,255,12), 2)

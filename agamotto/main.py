@@ -12,22 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This is the main file, first it reads from yaml
+then configure other classes with the parameters
+#TODO Improvements:
+ - decouple timezone
+"""
+import os
 from config.bigquery import BigQuery
 from utils.read_from_yaml import read_from_yaml
 from agamotto.agamotto import Agamotto
-import os
+
+
+
 
 if __name__ == '__main__':
-
-    
     config = read_from_yaml()
 
     os.environ['TZ'] = config['timezone']
-    
     if config["gcp"]["save_to_bigquery"]:
         bigquery = BigQuery(config)
         bigquery.create_count_table()
-    
     agamotto = Agamotto(config)
     agamotto.process_media(config["video"]["input_location"])
-
