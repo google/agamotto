@@ -62,6 +62,8 @@ model:
   val_dataset_size: 50
   save_weights_dir: agamotto_train
   load_weights_dir: agamotto_data
+  load_weights_url: https://github.com/roberto-goncalves/datasets/releases/download/
+  load_weights_version: v0
   #create load_weights_url
   #create load_weights_version
   num_classes: 1
@@ -69,6 +71,7 @@ model:
   confidence_threshold: 0.35
   model_optimizer_momentum: 0.9
   train: False
+  
 
 # Video Configuration
 # input_location: to use VideoCapture from OpenCV, can be: video.mp4 (is_stream is False), http://127.0.0.1:9098/video_feed (is_stream is True)
