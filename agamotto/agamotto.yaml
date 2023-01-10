@@ -62,8 +62,8 @@ model:
   val_dataset_size: 50
   save_weights_dir: agamotto_train
   load_weights_dir: agamotto_data
-  load_weights_url: https://github.com/roberto-goncalves/datasets/releases/download/
-  load_weights_version: v0
+  load_weights_url: https://github.com/roberto-goncalves/datasets/releases/download
+  load_weights_version: v1
   #create load_weights_url
   #create load_weights_version
   num_classes: 1
