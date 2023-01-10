@@ -24,12 +24,10 @@ from utils.read_from_yaml import read_from_yaml
 from agamotto.agamotto import Agamotto
 
 
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     config = read_from_yaml()
 
-    os.environ['TZ'] = config['timezone']
+    os.environ["TZ"] = config["timezone"]
     if config["gcp"]["save_to_bigquery"]:
         bigquery = BigQuery(config)
         bigquery.create_count_table()
