@@ -13,16 +13,18 @@
 #
 # limitations under the License.
 
+"""Bigquery main module"""
 
+from typing import List
 from google.cloud import bigquery
+from google.cloud.exceptions import NotFound
 from utils.logger import logger
 from model.agamotto_model import AgamottoEntry, get_schema
-from typing import List
-from google.cloud.exceptions import NotFound
-import json
 
 
 class BigQuery:
+    """Bigquery class"""
+
     def __init__(self, config):
         self._bigquery_service = None
         self._gcp_project = config["gcp"]["project"]
@@ -36,6 +38,14 @@ class BigQuery:
         )
 
     def _get_bigquery_service(self):
+        """Fetch bigquery service if it does not exists
+
+        Raises:
+            ex: #TODO
+
+        Returns:
+            #TODO: _description_
+        """
         if not self._bigquery_service:
             try:
                 self._bigquery_service = bigquery.Client()
@@ -43,10 +53,8 @@ class BigQuery:
                 raise ex
         return self._bigquery_service
 
-    def execute_query(self, query):
-        return self._get_bigquery_service().query(query)
-
     def create_count_table(self):
+        """Create the count table if bigquery save is enabled"""
         try:
             self._bigquery_service = bigquery.Client()
             if self._bigquery_service.get_table(self._table_id):
@@ -58,20 +66,18 @@ class BigQuery:
             table = bigquery.Table(self._table_id, schema=get_schema())
             table = self._bigquery_service.create_table(table)
             logger(self.__class__.__name__).info(
-                "Created table {}.{}.{}".format(
-                    table.project, table.dataset_id, table.table_id
-                )
+                f"Created table {table.project}.{table.dataset_id}.{table.table_id}".format()
             )
 
-    def insert_row(self, count):
-        # Create Model
-        self._bigquery_service = bigquery.Client()
-
-        self._bigquery_service.query(
-            f"INSERT INTO `{self._table_id}` VALUES ({count}, CURRENT_DATE(), CURRENT_TIME(), {self._location_latlong}, {self._location_id}, {self._location_name})"
-        )
-
     def insert(self, count_list: List[int]):
+        """Insert a list of counts into count_table
+
+        Args:
+            count_list (List[int]): #TODO
+
+        Raises:
+            ex: #TODO
+        """
         try:
             rows = []
             for count, day_time in count_list:
@@ -83,14 +89,12 @@ class BigQuery:
                     location_name=self._location_name,
                 ).__dict__
                 rows.append(entry)
-            errors = self._get_bigquery_service().insert_rows_json(
-                self._table_id, rows
-            )  # Make an API request.
+            errors = self._get_bigquery_service().insert_rows_json(self._table_id, rows)
             if errors == []:
                 logger(self.__class__.__name__).info("Stream insert was successfull")
             else:
                 logger(self.__class__.__name__).info(
-                    "Encountered errors while inserting rows: {}".format(errors)
+                    f"Encountered errors while inserting rows: {errors}"
                 )
         except Exception as ex:
             raise ex
