@@ -13,12 +13,8 @@
 #
 # limitations under the License.
 
-import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-
 """
-## Preprocessing data
+Preprocessing data
 Preprocessing the images involves two steps:
 - Resizing the image: Images are resized such that the shortest size is equal
 to 800 px, after resizing if the longest side of the image exceeds 1333 px,
@@ -27,6 +23,8 @@ the image is resized such that the longest size is now capped at 1333 px.
 are the only augmentations applied to the images.
 Along with the images, bounding boxes are rescaled and flipped if required.
 """
+
+import tensorflow as tf
 
 
 def random_flip_horizontal(image, boxes):
@@ -121,7 +119,16 @@ def preprocess_data(sample):
     bbox = convert_to_xywh(bbox)
     return image, bbox, class_id
 
+
 def prepare_image(image):
+    """Prepare image is a helper function that resize image and convert it to resnet preprocess
+
+    Args:
+        image (#TODO): _description_
+
+    Returns:
+        #TODO: _description_
+    """
     image, _, ratio = resize_and_pad_image(image, jitter=None)
     image = tf.keras.applications.resnet.preprocess_input(image)
     return tf.expand_dims(image, axis=0), ratio

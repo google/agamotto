@@ -13,15 +13,9 @@
 #
 # limitations under the License.
 
-import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-from .anchorbox import AnchorBox
-from .preprocess import convert_to_corners
-
 
 """
-## Encoding labels
+Encoding labels
 The raw labels, consisting of bounding boxes and class ids need to be
 transformed into targets for training. This transformation consists of
 the following steps:
@@ -31,6 +25,10 @@ the following steps:
 background class or ignored depending on the IOU
 - Generating the classification and regression targets using anchor boxes
 """
+
+import tensorflow as tf
+from .anchorbox import AnchorBox
+from .preprocess import convert_to_corners
 
 
 class LabelEncoder:
@@ -132,18 +130,15 @@ class LabelEncoder:
             labels = labels.write(i, label)
         batch_images = tf.keras.applications.resnet.preprocess_input(batch_images)
         return batch_images, labels.stack()
-    
-    """
-    ## Computing pairwise Intersection Over Union (IOU)
-    As we will see later in the example, we would be assigning ground truth boxes
-    to anchor boxes based on the extent of overlapping. This will require us to
-    calculate the Intersection Over Union (IOU) between all the anchor
-    boxes and ground truth boxes pairs.
-    """
-
 
     def compute_iou(self, boxes1, boxes2):
-        """Computes pairwise IOU matrix for given two sets of boxes
+        """
+        Computing pairwise Intersection Over Union (IOU)
+        As we will see later in the example, we would be assigning ground truth boxes
+        to anchor boxes based on the extent of overlapping. This will require us to
+        calculate the Intersection Over Union (IOU) between all the anchor
+        boxes and ground truth boxes pairs.
+        Computes pairwise IOU matrix for given two sets of boxes
         Arguments:
           boxes1: A tensor with shape `(N, 4)` representing bounding boxes
             where each box is of the format `[x, y, width, height]`.

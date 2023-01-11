@@ -14,16 +14,15 @@
 # limitations under the License.
 
 
+"""
+## Retinanet main class
+"""
+
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-import pdb
-import traceback
 
 
-"""
-## Building RetinaNet using a subclassed model
-"""
 class RetinaNet(keras.Model):
     """A subclassed Keras model implementing the RetinaNet architecture.
     Attributes:
@@ -42,6 +41,15 @@ class RetinaNet(keras.Model):
         self.box_head = self.build_head(9 * 4, "zeros")
 
     def call(self, image, training=False):
+        """Call method from keras
+
+        Args:
+            image (#TODO): _description_
+            training (bool, optional): _description_. Defaults to False.
+
+        Returns:
+            #TODO: _description_
+        """
         features = self.fpn(image, training=training)
         N = tf.shape(image)[0]
         cls_outputs = []
@@ -55,15 +63,14 @@ class RetinaNet(keras.Model):
         box_outputs = tf.concat(box_outputs, axis=1)
         return tf.concat([box_outputs, cls_outputs], axis=-1)
 
-    """
-    ## Building the classification and box regression heads.
-    The RetinaNet model has separate heads for bounding box regression and
-    for predicting class probabilities for the objects. These heads are shared
-    between all the feature maps of the feature pyramid.
-    """
-
     def build_head(self, output_filters, bias_init):
-        """Builds the class/box predictions head.
+        """
+        Building the classification and box regression heads.
+        The RetinaNet model has separate heads for bounding box regression and
+        for predicting class probabilities for the objects. These heads are shared
+        between all the feature maps of the feature pyramid.
+
+        Builds the class/box predictions head.
         Arguments:
           output_filters: Number of convolution filters in the final layer.
           bias_init: Bias Initializer for the final convolution layer.
@@ -75,7 +82,9 @@ class RetinaNet(keras.Model):
         kernel_init = tf.initializers.RandomNormal(0.0, 0.01)
         for _ in range(4):
             head.add(
-                keras.layers.Conv2D(256, 3, padding="same", kernel_initializer=kernel_init)
+                keras.layers.Conv2D(
+                    256, 3, padding="same", kernel_initializer=kernel_init
+                )
             )
             head.add(keras.layers.ReLU())
         head.add(
@@ -90,13 +99,9 @@ class RetinaNet(keras.Model):
         )
         return head
 
-"""
-## Implementing Smooth L1 loss and Focal Loss as keras custom losses
-"""
-
 
 class RetinaNetBoxLoss(tf.losses.Loss):
-    """Implements Smooth L1 loss"""
+    """Implementing Smooth L1 loss and Focal Loss as keras custom losses"""
 
     def __init__(self, delta):
         super(RetinaNetBoxLoss, self).__init__(
@@ -127,6 +132,15 @@ class RetinaNetClassificationLoss(tf.losses.Loss):
         self._gamma = gamma
 
     def call(self, y_true, y_pred):
+        """Call method from Keras
+
+        Args:
+            y_true (#TODO): _description_
+            y_pred (#TODO): _description_
+
+        Returns:
+            #TODO: _description_
+        """
         cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(
             labels=y_true, logits=y_pred
         )
@@ -147,6 +161,15 @@ class RetinaNetLoss(tf.losses.Loss):
         self._num_classes = num_classes
 
     def call(self, y_true, y_pred):
+        """Call method from Keras
+
+        Args:
+            y_true (#TODO): _description_
+            y_pred (#TODO): _description_
+
+        Returns:
+            #TODO: _description_
+        """
         y_pred = tf.cast(y_pred, dtype=tf.float32)
         box_labels = y_true[:, :, :4]
         box_predictions = y_pred[:, :, :4]
@@ -168,13 +191,11 @@ class RetinaNetLoss(tf.losses.Loss):
         loss = clf_loss + box_loss
         return loss
 
-"""
-## Building Feature Pyramid Network as a custom layer
-"""
-
 
 class FeaturePyramid(keras.layers.Layer):
-    """Builds the Feature Pyramid with the feature maps from the backbone.
+    """
+    Building Feature Pyramid Network as a custom layer
+    Builds the Feature Pyramid with the feature maps from the backbone.
     Attributes:
       num_classes: Number of classes in the dataset.
       backbone: The backbone to build the feature pyramid from.
@@ -195,6 +216,15 @@ class FeaturePyramid(keras.layers.Layer):
         self.upsample_2x = keras.layers.UpSampling2D(2)
 
     def call(self, images, training=False):
+        """Call method from Keras
+
+        Args:
+            y_true (#TODO): _description_
+            y_pred (#TODO): _description_
+
+        Returns:
+            #TODO: _description_
+        """
         c3_output, c4_output, c5_output = self.backbone(images, training=training)
         p3_output = self.conv_c3_1x1(c3_output)
         p4_output = self.conv_c4_1x1(c4_output)
@@ -209,16 +239,13 @@ class FeaturePyramid(keras.layers.Layer):
         return p3_output, p4_output, p5_output, p6_output, p7_output
 
 
-"""
-## Building the ResNet50 backbone
-RetinaNet uses a ResNet based backbone, using which a feature pyramid network
-is constructed. In the example we use ResNet50 as the backbone, and return the
-feature maps at strides 8, 16 and 32.
-"""
-
-
 def get_backbone():
-    """Builds ResNet50 with pre-trained imagenet weights"""
+    """Builds ResNet50 with pre-trained imagenet weights
+    Building the ResNet50 backbone
+    RetinaNet uses a ResNet based backbone, using which a feature pyramid network
+    is constructed. In the example we use ResNet50 as the backbone, and return the
+    feature maps at strides 8, 16 and 32.
+    """
     backbone = keras.applications.ResNet50(
         include_top=False, input_shape=[None, None, 3]
     )
