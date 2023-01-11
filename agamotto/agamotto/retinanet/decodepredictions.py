@@ -13,16 +13,14 @@
 #
 # limitations under the License.
 
-import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-from .anchorbox import AnchorBox
-from .preprocess import convert_to_corners
-
 
 """
 ## Implementing a custom layer to decode predictions
 """
+
+import tensorflow as tf
+from .anchorbox import AnchorBox
+from .preprocess import convert_to_corners
 
 
 class DecodePredictions(tf.keras.layers.Layer):
@@ -47,7 +45,7 @@ class DecodePredictions(tf.keras.layers.Layer):
         nms_iou_threshold=0.5,
         max_detections_per_class=100,
         max_detections=100,
-        box_variance=[0.1, 0.1, 0.2, 0.2],
+        # box_variance=[0.1, 0.1, 0.2, 0.2],
         **kwargs
     ):
         super(DecodePredictions, self).__init__(**kwargs)
@@ -63,6 +61,15 @@ class DecodePredictions(tf.keras.layers.Layer):
         )
 
     def _decode_box_predictions(self, anchor_boxes, box_predictions):
+        """Decode box predictions is a function that is called to transform boxes inside Layer
+
+        Args:
+            anchor_boxes (#TODO): _description_
+            box_predictions (#TODO): _description_
+
+        Returns:
+            #TODO: _description_
+        """
         boxes = box_predictions * self._box_variance
         boxes = tf.concat(
             [
@@ -75,6 +82,15 @@ class DecodePredictions(tf.keras.layers.Layer):
         return boxes_transformed
 
     def call(self, images, predictions):
+        """Call method from Keras, it actually use box_predictions to insert into layer
+
+        Args:
+            images (#TODO): _description_
+            predictions (#TODO): _description_
+
+        Returns:
+            #TODO: _description_
+        """
         image_shape = tf.cast(tf.shape(images), dtype=tf.float32)
         anchor_boxes = self._anchor_box.get_anchors(image_shape[1], image_shape[2])
         box_predictions = predictions[:, :, :4]

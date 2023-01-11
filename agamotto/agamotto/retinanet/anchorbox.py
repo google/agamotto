@@ -12,12 +12,6 @@
 # See the License for the specific language governing permissions and
 #
 # limitations under the License.
-
-
-import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-
 """
 ## Implementing Anchor generator
 Anchor boxes are fixed sized boxes that the model uses to predict the bounding
@@ -27,6 +21,8 @@ and height of the anchor box to predict a relative scale of the object. In the
 case of RetinaNet, each location on a given feature map has nine anchor boxes
 (at three scales and three ratios).
 """
+
+import tensorflow as tf
 
 
 class AnchorBox:
