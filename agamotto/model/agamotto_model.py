@@ -13,22 +13,39 @@
 #
 # limitations under the License.
 
+"""Model module"""
 
-from google.cloud import bigquery
 from datetime import datetime
+from google.cloud import bigquery
 
 
 class AgamottoEntry:
-    """Model Class that represents an entry that needs to be updated."""
+    """""Model Class that represents an entry that needs to be updated.""" ""
 
-    def __init__(self, count: int, day_time: datetime, latlong: str, location_id: int, location_name: str):
+    def __init__(
+        self,
+        count: int,
+        day_time: datetime,
+        latlong: str,
+        location_id: int,
+        location_name: str,
+    ):
         self.count = int(count)
         self.day_time = day_time
         self.latlong = latlong
         self.location_id = int(location_id)
         self.location_name = location_name
 
+
 def get_schema():
+    """Returns the table schema from bigquery
+
+    #TODO Improvements:
+        - Generate the schema based on AgamottoEntry class
+
+    Returns:
+        schema: #TODO
+    """
     schema = [
         bigquery.SchemaField("count", "INTEGER", mode="REQUIRED"),
         bigquery.SchemaField("day_time", "DATETIME", mode="REQUIRED"),
