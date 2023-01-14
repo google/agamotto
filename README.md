@@ -2,11 +2,15 @@
 
 [![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/PyCQA/pylint)
 
-Agamotto is a open-source solution that uses Machine Learning to gather insights from physical locations using IoT. The initial version uses Computer Vision to read from cameras using OpenCV and send the data to BigQuery. Agamotto aims to be used to measure the impact of Marketing Campaigns on physical locations.
+Agamotto is a open-source solution that uses Machine Learning to gather insights from physical locations using IoT. The initial version uses Computer Vision to read from cameras using OpenCV and send the data to BigQuery. Agamotto aims to be used to measure the impact and define strategies of marketing campaigns.
 
-This is what the output should look like: 
+How the count is processed by Video file or Stream:
 
 <img src="images/example.png" width=100% height=100%>
+
+Dashboard with Heatmap by Location (latlong):
+
+<img src="images/example_dashboard.png" width=100% height=100%>
 
 ## Pre-requisites
 
@@ -43,7 +47,7 @@ python3.7 main.py
 ## Updates
 
 - Better model improvement, datasets regarding humans and crowds and precise weights for Agamotto (coming soon)
-- Heatmap data inside physical locations to determine where is the best spot (coming soon)
+- Heatmap inside physical locations to determine where is the best spot (coming soon)
 
 ## Acknowledgements
 
