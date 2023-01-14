@@ -4,9 +4,13 @@
 
 Agamotto is a open-source solution that uses Machine Learning to gather insights from physical locations using IoT. The initial version uses Computer Vision to read from cameras using OpenCV and send the data to BigQuery. Agamotto aims to be used to measure the impact of Marketing Campaigns on physical locations.
 
-This is what the output should look like: 
+This is the count result
 
 <img src="images/example.png" width=100% height=100%>
+
+After send to Bigquery, you can create a dashboard:
+
+<img src="images/example_dashboard.png" width=100% height=100%>
 
 ## Pre-requisites
 
