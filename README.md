@@ -6,11 +6,11 @@ Agamotto is a open-source solution that uses Machine Learning to gather insights
 
 This is the count result
 
-<img src="images/example.png" width=50% height=50%>
+<img src="images/example.png" width=75% height=75%>
 
 After sending to Bigquery, you can create a dashboard:
 
-<img src="images/example_dashboard.png" width=50% height=50%>
+<img src="images/example_dashboard.png" width=75% height=75%>
 
 ## Pre-requisites
 
