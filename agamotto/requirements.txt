@@ -14,4 +14,4 @@ tensorflow-datasets==4.7.0
 numpy==1.21.6
 matplotlib==3.4.1
 opencv-python==4.5.1.48
-protobuf==3.20.0
+protobuf==3.20.2
